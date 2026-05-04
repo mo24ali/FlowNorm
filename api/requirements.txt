@@ -11,3 +11,5 @@ alembic
 pytest
 httpx
 pytest-asyncio
+flake8
+bandit
