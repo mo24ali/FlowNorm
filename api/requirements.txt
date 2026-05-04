@@ -14,3 +14,5 @@ pytest-asyncio
 flake8
 bandit
 structlog
+PyJWT
+slowapi
