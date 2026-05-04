@@ -9,9 +9,11 @@ from typing import List, Dict, Any
 from api.models.schemas import TransactionNormalized, Status
 from api.core.normalizer import FinancialNormalizer
 
-# Setup logging for monitoring and self-healing trace
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import structlog
+from api.core.logging import setup_logging
+
+setup_logging()
+logger = structlog.get_logger(__name__)
 
 app = FastAPI(title="Fintech Data Aggregation MVP", version="1.0.0")
 
