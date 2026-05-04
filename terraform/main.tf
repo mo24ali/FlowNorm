@@ -2,6 +2,11 @@ provider "aws" {
   region = "us-east-1"
 }
 
+provider "aws" {
+  alias  = "secondary"
+  region = "eu-west-1"
+}
+
 # --- VPC & Networking ---
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
@@ -15,19 +20,28 @@ module "vpc" {
   enable_nat_gateway = true
 }
 
-# --- RDS PostgreSQL Instance ---
+# --- Secrets Management ---
+resource "aws_ssm_parameter" "db_password" {
+  name        = "/fintech/prod/db_password"
+  description = "The database password"
+  type        = "SecureString"
+  value       = "Fintech2024Secure!" # In reality, generated or passed as var
+}
+
+# --- RDS PostgreSQL Instance (High Availability) ---
 resource "aws_db_instance" "fintech_db" {
   identifier           = "fintech-postgres"
   engine               = "postgres"
   engine_version       = "15.3"
-  instance_class       = "db.t3.micro" # MVP Free Tier eligible
+  instance_class       = "db.t3.micro"
   allocated_storage     = 20
   db_name              = "fintech_db"
   username             = "admin"
-  password             = "Fintech2024Secure!" # Use SSM Parameter in production
+  password             = aws_ssm_parameter.db_password.value
   parameter_group_name = "default.postgres15"
   skip_final_snapshot  = true
-  
+  multi_az             = true # Resilience: Automatic failover to another AZ
+
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   db_subnet_group_name   = module.vpc.database_subnet_group
 }
@@ -41,7 +55,7 @@ resource "aws_lambda_function" "normalizer" {
   runtime       = "python3.11"
   environment {
     variables = {
-      DATABASE_URL = "postgresql://admin:Fintech2024Secure!@${aws_db_instance.fintech_db.address}/fintech_db"
+      DATABASE_URL = "postgresql://admin:${aws_ssm_parameter.db_password.value}@${aws_db_instance.fintech_db.address}/fintech_db"
     }
   }
 }

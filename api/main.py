@@ -9,11 +9,19 @@ from typing import List, Dict, Any
 from api.models.schemas import TransactionNormalized, Status
 from api.core.normalizer import FinancialNormalizer
 
-# Setup logging for monitoring and self-healing trace
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import structlog
+from api.core.logging import setup_logging
+
+setup_logging()
+logger = structlog.get_logger(__name__)
+
+from api.core.rate_limit import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="Fintech Data Aggregation MVP", version="1.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Enable CORS for the React dashboard
 app.add_middleware(
@@ -32,6 +40,9 @@ NORMALIZED_STATE: Dict[str, Any] = {
 
 normalizer = FinancialNormalizer()
 
+from api.core.resilience import resilience_retry
+
+@resilience_retry(attempts=3)
 async def run_ingestion_pipeline(task_id: str, file_content: bytes, filename: str):
     """
     Simulated background normalization worker with self-healing retry logic.
