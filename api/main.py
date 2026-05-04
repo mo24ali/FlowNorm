@@ -40,6 +40,9 @@ NORMALIZED_STATE: Dict[str, Any] = {
 
 normalizer = FinancialNormalizer()
 
+from api.core.resilience import resilience_retry
+
+@resilience_retry(attempts=3)
 async def run_ingestion_pipeline(task_id: str, file_content: bytes, filename: str):
     """
     Simulated background normalization worker with self-healing retry logic.

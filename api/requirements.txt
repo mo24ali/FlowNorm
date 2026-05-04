@@ -16,3 +16,4 @@ bandit
 structlog
 PyJWT
 slowapi
+tenacity
